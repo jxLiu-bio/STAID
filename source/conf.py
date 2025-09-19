@@ -55,5 +55,6 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # a list of builtin themes.
 #
 # html_theme = 'alabaster'
-html_theme = 'pydata_sphinx_theme'
+# html_theme = 'pydata_sphinx_theme'
+html_theme = 'sphinx_rtd_theme'
 

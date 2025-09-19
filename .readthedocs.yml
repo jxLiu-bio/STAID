@@ -6,7 +6,7 @@ build:
     - cmake
     - g++
   tools:
-    python: "3.7"
+    python: "3.9"
 
 
 sphinx:
@@ -16,6 +16,5 @@ sphinx:
 formats: all
 
 python:
-  # version: 3.7
   install:
     - requirements: source/requirements.txt
