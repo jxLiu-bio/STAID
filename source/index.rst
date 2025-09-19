@@ -11,7 +11,7 @@ STAID: iterative deconvolution in spatial transcriptomics via deep learning and 
    References
    Release
    Contact
-   spatial/human_breast_cancer
+   spatial/breast_cancer_tutorial
 
 
  
