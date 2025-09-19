@@ -1,22 +1,5 @@
-# STAID: iterative deconvolution in spatial transcriptomics via deep learning and graph Fourier Transform
-
-<img src="https://img.shields.io/badge/Platform-Linux-green"> <img src="https://img.shields.io/badge/Language-python3-green"> <img src="https://img.shields.io/badge/License-MIT-green"> <img src="https://img.shields.io/badge/notebooks-passing-green">
-
-## System Requirments
-
-### OS requirements
-
-```STAID``` can run on Linux and Windows. The package has been tested on the following systems:
-
-- Linux: Ubuntu 18.04 with NVIDIA RTX 4090 GPU.
-- Windows: Windows Server 2022 with NVIDIA RTX A5000 GPU
-
-```STAID``` requires python version >= 3.8.
-
-All results in this tutorial were obtained using Python 3.9.0 with CUDA 12.4 on Linux.
-
-
 ## Installation Guide
+
 
 ### 1. Create a virtual environment
 
@@ -28,8 +11,8 @@ Create a separated virtual environment:
 conda create -n STAID_env python=3.9
 conda activate STAID_env
 ```
-### 2. Install ```STAID```
 
+### 2. Install ```STAID```
 Install ```STAID``` from [Github](https://github.com/jxLiu-bio/STAID) and install it by:
 ```bash
 git clone https://github.com/jxLiu-bio/STAID.git
@@ -65,6 +48,3 @@ Optionally, you can install Jupyter Notebook and create a kernel for your STAID 
 conda install jupyter
 python -m ipykernel install --user --name STAID_env --display-name STAID_env
 ```
-
-## Tutorial
-For a step-by-step tutorial, please refer to: [STAID tutorial](https://deepgft.readthedocs.io/en/latest/notebook/2_Mouse_Primary_Visual_Cortex.html).

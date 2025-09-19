@@ -1,7 +1,7 @@
 from .staid_pred_train import run_deconvolution
-from .mlp_pred_train import mlp_predict
 import os
+from .utils import seed_everything
 
-os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
-__all__ = ['plot']
+
+__all__ = ['plot', 'utils']
 __version__ = '0.1.0'

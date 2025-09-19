@@ -1,16 +1,11 @@
-# import multiprocessing
 import os
 import warnings
-
 import numpy as np
 import pandas as pd
 import scanpy as sc
-
-from staid.utils import merge_real_pseudo
+from staid.utils import merge_real_pseudo, remove_batch_scanorama
 from staid.utils import remove_batch_combat
 from staid.utils import sc_cell_type_collect
-
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
 warnings.filterwarnings("ignore")
 
 
@@ -18,29 +13,6 @@ def enrichment_binary_page(enrichment_score_df,
                            cutoff=2,
                            lower_bound=2,
                            cutoff2=1):
-    """
-    According to PAGE scores, determine which cell types will present in each 
-    location
-
-    Parameters
-    ----------
-    enrichment_score_df : dataframe
-        The dataframe stores prime enchiment score, (n_cellTYpes, n_spots)
-    cutoff : float, optional
-        The cutoff used for preserving potential cell types . The default is 2.
-    lower_bound : int, optional
-        The minimal cell types a spot contains. The default is 3. If the 
-        
-    cutoff2 : float, optional
-        The cutoff for deciding the existence of a cell type. The default is 1.
-
-    Returns
-    -------
-    enrich_df : dataframe
-        
-
-    """
-
     # Create a dataframe for saving enrichment binary results. The column is
     # 'cell type_list', and the indexes are all locations' index (such as barcodes)
     # The elements in this dataframe is a cell type lists which are enriched.
@@ -79,8 +51,8 @@ def enrichment_binary_MIA(enrichment_score_df):
 
 def spatial_clustering(tmp_spa_adata, clustering_method='leiden',
                        resolution=1):
-    '''
-    Before synthesizing pseudo spots, clustering may be useful to ensure the 
+    """
+    Before synthesizing pseudo spots, clustering may be useful to ensure the
     label balance of training set, that is, pseudo spots.
 
     Parameters
@@ -91,14 +63,7 @@ def spatial_clustering(tmp_spa_adata, clustering_method='leiden',
         The method used in clustering. The default is 'leiden'.
     resolution : float, optional
         resolution used in clustering. The default is 1.
-
-    Returns
-    -------
-    DataFrame
-        the clustering results by dataframe, whose index are barcodes and colu-
-        mn is the label of cluster.
-
-    '''
+    """
     # Preprocessing
     sc.pp.filter_genes(tmp_spa_adata, min_cells=3)
     sc.pp.log1p(tmp_spa_adata)
@@ -123,8 +88,7 @@ def generator_sampling_absolute(spa_adata,
                                 max_cells=20,
                                 source='abs'):
     '''
-    Generate pseudo spots according to each spot's enrichment of cell type. 
-    Here, ignore the mount difference of spaital cluster.
+    Generate pseudo spots according to each spot's enrichment of cell types.
 
     Parameters
     ----------
@@ -143,19 +107,6 @@ def generator_sampling_absolute(spa_adata,
     max_cells : int, optional
         the upper bound of cell mount appearing in each pseudo spot. The 
         default is 20.
-    method : str, optional
-        Similarity metric used in generating pseudo spots. Here, the default is 
-        'Pearson'.
-
-    Returns
-    -------
-    pseudo_df : dataframe
-        gene expression matrix, dataframe, whose index indicates pseudo and
-        columns indicate gene(HVGs).
-    pseudo_index_df : dataframe
-        For each pseudo spot, the dataframe record the single cells which 
-        constitute this pseudo spots.
-
     '''
     # Determine the number of pseudo spots
     pseudo_num_per_spot = int(np.ceil(pseudo_num_absolute /
@@ -212,9 +163,6 @@ def generator_sampling_random(sc_adata,
         titute this pseudo spots.
 
     '''
-    # Create a dataframe to save pseudo_spot
-    pseudo_df = pd.DataFrame(index=sc_adata.var.index)
-    pseudo_index_df = pd.DataFrame(index=["cell_selected"])
     # Merge all cells
     all_cells = []
     for i in range(ct_cellList_df_relative.shape[0]):
@@ -225,13 +173,14 @@ def generator_sampling_random(sc_adata,
     pseudo_index_dict = dict()
 
     def _random_generate(i):
-        if i % 10 == 0:
+        if i % 20 == 1:
+            tmp_cell_num = 1
+        if i % 20 == 2:
             tmp_cell_num = 2
-            tmp_cell_selected = np.random.choice(all_cells, tmp_cell_num)
         else:
             tmp_cell_num = np.random.randint(min_cells, max_cells + 1,
                                              size=[1])[0]
-            tmp_cell_selected = np.random.choice(all_cells, tmp_cell_num)
+        tmp_cell_selected = np.random.choice(all_cells, tmp_cell_num)
         pseudo_df_dict[str(i) + '_random'] = sc_adata[tmp_cell_selected, :].X.sum(axis=0)
         pseudo_index_dict[str(i) + '_random'] = [tmp_cell_selected]
 
@@ -250,12 +199,11 @@ def generator_sampling_relative(spa_adata,
                                 sc_adata,
                                 ct_cellList_df_relative,
                                 pseudo_num_relative,
-                                num_candidate=100,
                                 min_cells=1,
                                 max_cells=20):
     '''
     Similar to generator_sampling_absolute(). There are only one difference.
-    Label districbution, that is, clusters' proportion will be considered to
+    Label distribution, that is, clusters' proportion will be considered to
     balance the training set.
 
     Parameters
@@ -271,24 +219,13 @@ def generator_sampling_relative(spa_adata,
         single cell/barcode list under current cell type.
     pseudo_num_relative : int
         the number of pseudo spots generated for each real spot.
-    num_candidate : int, optional
-        the number of candidate pseudo spots. The default is 100.
     min_cells : int, optional
         the lower bound of cell mount appearing in each pseudo spot.
         The default is 1.
     max_cells : int, optional
         the upper bound of cell mount appearing in each pseudo spot. 
         The default is 20.
-    method : str, optional
-        Similarity metric used in generating pseudo spots. Here, the default is 
-        'Pearson'.
 
-    Returns
-    -------
-    pseudo_df : dataframe
-        gene expression matrix, dataframe, whose index indicates pseudo and columns indicate gene(HVGs).
-    pseudo_index_df : dataframe
-        For each pseudo spot, the dataframe record the single cells which constitute this pseudo spots.
     '''
 
     # Counte cluster information
@@ -331,7 +268,8 @@ def generator_sampling_relative(spa_adata,
     return pseudo_df, pseudo_index_df
 
 
-def cell_type_composition(pseudo_index_df, sc_cellType_df,
+def cell_type_composition(pseudo_index_df,
+                          sc_cellType_df,
                           source="absolute"):
     '''
     According to cell type annotations and barcodes of single cells constituted
@@ -348,11 +286,6 @@ def cell_type_composition(pseudo_index_df, sc_cellType_df,
     source : str, optional
        Distinguish the source of pseudo spots to make names unique. The default
        is "absolute".
-
-    Returns
-    -------
-    pseudo_composition_df : dataframe
-        For each generated pseudo spot, the cell type composition could be got.
 
     '''
     # Obtain all cell types
@@ -408,27 +341,18 @@ def generate_pseudo_spots(sc_adata_tmp,
         the upper bound of cell mount appearing in each pseudo spot.
         The default is 20.
     anno_name : str, optional
-        the column name which indicates cell type annotation. In this way, the
-        annotation information can be found by sc_adata.obs[anno_name].
+        the column name which indicates cell type annotation. In this way, the annotation information can be found
+        in sc_adata.obs[anno_name].
         The default is "cell_type".
     enrich_method : str, optional
         Enrichment method used. The default is "MIA".
     pseudo_num_rate : tuple, optional
-        For current real spots, pseudo_num_rate indicates the mount of pseudo
-        spots (by rate). The default is 4. That is, Generate 4 times pseudo 
+        For current real spots, pseudo_num_rate indicates the mount of pseudo spots (by rate).
+        The default is 4. That is, Generate 4 times pseudo
         spots for current real spots.
     abs_relative_rate : tuple, optional
-        Indicate the proportions of absolute pseudo spots,
-        relative pseudo spots, and random spots. 
+        Indicate the proportions of absolute pseudo spots, relative pseudo spots, and random spots.
         The default is (0.4, 0.4, 0.2).
-
-    Returns
-    -------
-    pseudo_df : dataframe
-        gene expression matrix, dataframe, whose index indicates pseudo and
-        columns indicate gene(HVGs).
-    pseudo_df_composition : dataframe
-        For each generated pseudo spot, the cell type composition could be got.
 
     '''
     global pseudo_index_df_relative, pseudo_index_df_absolute, pseudo_index_df_random
@@ -450,11 +374,9 @@ def generate_pseudo_spots(sc_adata_tmp,
     # Determine the mount of pseudo-spots from absolute cell lists and mount
     # of pseudo-spot from relative cell lists.
     pseudo_num_total = pseudo_num_rate * spa_adata.shape[0]
-
-    pseudo_num_relative = int(pseudo_num_total * abs_relative_rate[1])
     pseudo_num_absolute = int(pseudo_num_total * abs_relative_rate[0])
-    pseudo_num_random = int(pseudo_num_total * abs_relative_rate[2])
-    pseudo_num_random = pseudo_num_total
+    pseudo_num_relative = int(pseudo_num_total * abs_relative_rate[1])
+    pseudo_num_random = int(pseudo_num_total * 1)
     spa_adata.obs['id_cluster'] = domains
     # control the number of scRNA-seq
     from tqdm import tqdm
@@ -545,8 +467,8 @@ def generator_iter_absolute(spa_adata,
         the upper bound of cell mount appearing in each pseudo spot.
     method : str, optional
         Similarity metric used in generating pseudo spots. The default is "Pearson".
-    perturbation : float, optinal
-        Control the cell type perturbation when generate pseudo spots.
+    perturbation : float, optional
+        Control the cell type perturbation when generating pseudo spots.
         The default is 0.2.
 
     Returns
@@ -558,7 +480,6 @@ def generator_iter_absolute(spa_adata,
         column indicates the lists that store present cells.
 
     '''
-
     # determine generating 
     pseudo_num_per_spot = int(np.ceil(pseudo_num_absolute / (spa_adata.shape[0] + 1)))
     # Create a dataframe to save pseudo_spot
@@ -571,9 +492,6 @@ def generator_iter_absolute(spa_adata,
         tmp_ct_composition = pre_deconvo.loc[i, :]
         for j in range(tmp_pseudo_spot_num):
             tmp_cell_num = np.random.randint(min_cells, max_cells + 1, size=[1])[0]
-            if j % 3 == 0:
-                tmp_cell_num = int(1.5 * tmp_cell_num)
-            tmp_cell_num = max(1, tmp_cell_num)
             tmp_cell_selected = []
             for k in tmp_ct_composition.index:
                 percent = tmp_ct_composition[k]
@@ -701,7 +619,7 @@ def generator_iteration(spa_adata,
                         perturbation=0.2):
     """
     Similar to generator_without_density(). This function is used
-    to synthesize pseudo spots. Differently, here used pre-deconvlution results
+    to synthesize pseudo spots. Differently, here used pre-deconvolution results
     rather than cell type enrichment information.
 
     Parameters
@@ -713,31 +631,25 @@ def generator_iteration(spa_adata,
     pre_deconvo : dataframe
         the deconvolution results obtained from previous step/iteration.
     min_cells : int, optional
-        the lower bound of cell mount appearing in each pseudo spot. The 
-        default is 1.
+        the lower bound of cell mount appearing in each pseudo spot. The default is 1.
     max_cells : TYPE, optional
-        the upper bound of cell mount appearing in each pseudo spot. The 
-        default is 20.
+        the upper bound of cell mount appearing in each pseudo spot. The default is 20.
     pseudo_num_rate : int, optional
-        For current real spots, pseudo_num_rate indicates the mount of pseudo
-        spots (by rate). The default is 4. That is, generate 4 times pseudo
-        spots for current real spots.
+        For current real spots, pseudo_num_rate indicates the mount of pseudo spots (by rate).
+        The default is 4. That is, generate 4 times pseudo spots for current real spots.
     anno_name : str, optional
-        the column name which indicates cell type annotation. In this way, the
-        cell type annotation information could be found by 
-        sc_adata.obs[anno_name]. The default is "cell_type".
-        
+        the column name which indicates cell type annotation. In this way, the cell type annotation information
+        could be found in sc_adata.obs[anno_name]. The default is "cell_type".
     abs_relative_rate : tupple, optional
-        Indicate the proportions of absolute psudo spot and relative pseudo sp-
-        ot.  The default is (0.6, 0.3, 0.1).
+        Indicate the proportions of absolute psudo spot and relative pseudo spot.  The default is (0.6, 0.3, 0.1).
     num_candidate : int, optional
-        In the process of generation, indicate the mount of candidate pseudo 
+        In the process of generation, indicates the mount of candidate pseudo
         spots. The default is 100.
     method : str, optional
         Similarity metric used in generating pseudo spots.
         The default is "Pearson".
-    perturbation : float, optinal
-        Control the cell type perturbation when generate pseudo spots.
+    perturbation : float, optional
+        Control the cell type perturbation when generating pseudo spots.
         The default is 0.2.
 
     Returns
@@ -760,15 +672,15 @@ def generator_iteration(spa_adata,
     # Determine the mount of pseudo-spots from absolute cell lists and the
     # mount of pseudo-spot from relative cell lists.
     pseudo_num_total = pseudo_num_rate * spa_adata.shape[0]
-    pseudo_num_relative = int(pseudo_num_total * abs_relative_rate[1])
     pseudo_num_absolute = int(pseudo_num_total * abs_relative_rate[0])
+    pseudo_num_relative = int(pseudo_num_total * abs_relative_rate[1])
     pseudo_num_random = int(pseudo_num_total * abs_relative_rate[2])
 
     from tqdm import tqdm
     pbar = tqdm(range(3), desc="Generate pseudo spots")
     for i in pbar:
         if i == 0:
-            # Get the synthesised synthetic pseudo spots absolutely
+            # Get the synthesized synthetic pseudo spots absolutely
             pseudo_df_absolute, pseudo_index_df_absolute = generator_iter_absolute(spa_adata,
                                                                                    sc_adata,
                                                                                    pre_deconvo,
@@ -780,7 +692,7 @@ def generator_iteration(spa_adata,
                                                                                    perturbation=perturbation,
                                                                                    )
         elif i == 1:
-            # Get the synthesised synthetic pseudo spots relatively
+            # Get the synthesized synthetic pseudo spots relatively
             pseudo_df_relative, pseudo_index_df_relative = generator_iter_relative(spa_adata,
                                                                                    sc_adata,
                                                                                    pre_deconvo,
@@ -797,7 +709,7 @@ def generator_iteration(spa_adata,
                                                                                  ct_cellList_df_relative,
                                                                                  pseudo_num_random,
                                                                                  min_cells=min_cells,
-                                                                                 max_cells=int(max_cells / 1.2))
+                                                                                 max_cells=max_cells)
     # Obtain cell type composition from generated pseudo-spots
     pseudo_composition_df_absoulte = cell_type_composition(pseudo_index_df_absolute,
                                                            sc_adata.obs[anno_name],
@@ -864,8 +776,10 @@ def generate_merge_initial(sc_adata,
                                         marker_genes,
                                         library_size=library_size)
     # Whether you need to remove batch (platform actually) effects
-    if remove_platform:
+    if remove_platform == 'combat':
         spa_X, pseudo_X = remove_batch_combat(spa_X, pseudo_X, rand_size)
+    elif remove_platform == 'scanorama':
+        spa_X, pseudo_X = remove_batch_scanorama(spa_X, pseudo_X, rand_size)
 
     return spa_X, pseudo_X, pseudo_df_composition, rand_size
 
@@ -894,23 +808,20 @@ def generate_merge_iter(sc_adata,
     anno_name : str, optional
         cell_type key. The default is 'cell_type'.
     min_cells : int, optional
-        the lower bound of cell mount appearing in each pseudo spot. The defau-
-        lt is 1.
+        the lower bound of cell mount appearing in each pseudo spot. The default is 1.
     max_cells : TYPE, optional
-        the upper bound of cell mount appearing in each pseudo spot. The defau-
-        lt is 20.
-    abs_relative_rate : tupple, optional
-        Indicate the proportions of absolute psudo spot and relative pseudo sp-
-        ot. The default is (0.3, 0.4, 0.3).
+        the upper bound of cell mount appearing in each pseudo spot. The default is 20.
+    abs_relative_rate : tuple, optional
+        Indicate the proportions of absolute pseudo spots, relative pseudo spots and random spots.
+        The default is (0.3, 0.4, 0.3).
     pseudo_num_rate_iter : int, optional
         The ratio between pseudo spots and real spots. The default is 30.
     pseudo_num_iter : int or None, optional
-        The number of pseudo spots that need to be generated. If none, the 
-        number of pseudo spots will be obtained by pseudo_num_rate_iter.
-        The default is None.
+        The number of pseudo spots that need to be generated. If none, the number of pseudo spots will be obtained by
+        pseudo_num_rate_iter. The default is None.
     remove_platform : bool, optional
-        Whether need to remove platform effect. This step will be implemented
-        by sc.pp.combat(). The default is False.
+        Whether you need to remove platform effect. This step will be implemented by sc.pp.combat().
+        The default is False.
     library_size : int, optional
         The library size in each spot.
 
@@ -947,8 +858,10 @@ def generate_merge_iter(sc_adata,
                                         library_size=library_size)
 
     # Whether you need to remove batch (platform actually) effects
-    if remove_platform:
+    if remove_platform == 'combat':
         spa_X, pseudo_X = remove_batch_combat(spa_X, pseudo_X, rand_size)
+    elif remove_platform == 'scanorama':
+        spa_X, pseudo_X = remove_batch_scanorama(spa_X, pseudo_X, rand_size)
 
     return spa_X, pseudo_X, pseudo_df_composition, rand_size
 
@@ -962,46 +875,8 @@ def generate_merge_iter_tmp(sc_adata,
                             max_cells=15,
                             abs_relative_rate=(0.3, 0.4, 0.3),
                             pseudo_num_rate_iter=30,
-                            remove_platform=False,
                             perturbation=0.2,
-                            library_size=1e3):
-    """
-    Parameters
-    ----------
-    sc_adata : AnnData
-        scRNA-seq data with cell type annotation.
-    spa_adata : AnnData
-        spatial data.
-    pre_deconvo : dataframe
-        The deconvolution results obtained from previous step/iteration.
-    anno_name : str, optional
-        cell_type key. The default is 'cell_type'.
-    min_cells : int, optional
-        the lower bound of cell mount appearing in each pseudo spot. The default is 1.
-    max_cells : TYPE, optional
-        the upper bound of cell mount appearing in each pseudo spot. The default is 20.
-    abs_relative_rate : tuple, optional
-        Indicate the proportions of absolute pseudo spots and relative pseudo spots. The default is (0.3, 0.4, 0.3).
-    pseudo_num_rate_iter : int, optional
-        The ratio between pseudo spots and real spots. The default is 30.
-    pseudo_num_iter : int or None, optional
-        The number of pseudo spots that need to be generated. If none, the 
-        number of pseudo spots will be obtained by pseudo_num_rate_iter.
-        The default is None.
-    remove_platform : bool, optional
-        Whether you need to remove platform effect. This step will be implemented
-        by sc.pp.combat(). The default is False.
-    library_size : int, optional
-        The library size in each spot.
-
-    Returns
-    -------
-    pseudo_df: dataframe
-        The reconstructed gene expression matrix.
-    pseudo_df_composition : dataframe
-        The cell type composition of pseudo spots.
-
-    """
+                            library_size=1e4):
     # Generate new pseudo spots according to pre-deconvolution results.
     if spa_adata.shape[0] > 5000:
         all_barcodes = np.random.choice(spa_adata.obs_names,
