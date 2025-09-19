@@ -67,4 +67,4 @@ python -m ipykernel install --user --name STAID_env --display-name STAID_env
 ```
 
 ## Tutorial
-For a step-by-step tutorial, please refer to: [STAID tutorial](https://deepgft.readthedocs.io/en/latest/notebook/2_Mouse_Primary_Visual_Cortex.html).
+For a step-by-step tutorial, please refer to: [STAID tutorial](https://staid.readthedocs.io/en/latest/).
