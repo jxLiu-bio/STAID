@@ -1,4 +1,4 @@
-# STAID: iterative deconvolution in spatial transcriptomics via deep learning and graph Fourier Transform
+# STAID: iterative deconvolution in spatial transcriptomics via deep learning and graph Fourier transform
 
 <img src="https://img.shields.io/badge/Platform-Linux-green"> <img src="https://img.shields.io/badge/Language-python3-green"> <img src="https://img.shields.io/badge/License-MIT-green"> <img src="https://img.shields.io/badge/notebooks-passing-green">
 
