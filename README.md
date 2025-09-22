@@ -2,7 +2,7 @@
 
 <img src="https://img.shields.io/badge/Platform-Linux-green"> <img src="https://img.shields.io/badge/Language-python3-green"> <img src="https://img.shields.io/badge/License-MIT-green"> <img src="https://img.shields.io/badge/notebooks-passing-green">
 
-## System Requirments
+## System Requirements
 
 ### OS requirements
 
@@ -22,7 +22,7 @@ All results in this tutorial were obtained using Python 3.9.0 with CUDA 12.4 on 
 
 Users can install ```anaconda``` by following this tutorial if there is no [Anaconda](https://www.anaconda.com/).
 
-Create a separated virtual environment:
+Create a separate virtual environment:
 
 ```shell
 conda create -n STAID_env python=3.9
