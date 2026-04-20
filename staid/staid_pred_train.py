@@ -14,6 +14,8 @@ from .utils import remove_low_values
 from .utils import fourier_modes_gene_network
 from .enrichment_mia import enrichment_mia
 from sklearn.preprocessing import Normalizer
+from typing import Callable, Union
+
 
 warnings.filterwarnings("ignore")
 torch.set_default_tensor_type(torch.FloatTensor)
@@ -251,14 +253,14 @@ def run_deconvolution(sp_adata,
                       lr=0.0005,
                       num_pseudo=5000,
                       num_epoch=200,
-                      num_iter=5,
+                      num_iter=3,
                       batch_size=512,
                       min_cells=1,
-                      max_cells=20,
+                      max_cells=8,
                       cutoff=0.5,
-                      batch_correction=None,
+                      batch_correction: Union[str, bool, Callable] = False,
                       random_spot_rate=0.3,
-                      hidden_dims=[512, 128, 128],
+                      hidden_dims=[512, 128, 64],
                       library_size=1e4,
                       dropout=0.05,
                       c=0.1,
@@ -315,14 +317,14 @@ def run_deconvolution(sp_adata,
         Maximum number of cells per pseudo-spot. Default is `20`.
     cutoff : float, optional
         Graph construction threshold for gene network. Default is `0.5`.
-    batch_correction : str or None, optional
+    batch_correction : str, callable or bool, optional
         Method for platform correction (e.g., `'combat'`, `'scanorama'`).
-        Default is `None`.
+        Default is False.
     random_spot_rate : float, optional
         Proportion of pseudo-spots generated randomly. Must be between 0
         and 1. Default is `0.3`.
     hidden_dims : list of int, optional
-        Hidden layer dimensions for the neural network. Default is `[512, 128, 128]`.
+        Hidden layer dimensions for the neural network. Default is `[512, 128, 64]`.
     library_size : float, optional
         Target library size for normalization. Default is `1e4`.
     dropout : float, optional
@@ -502,7 +504,6 @@ def run_deconvolution(sp_adata,
         adata_sc_sim = simplify_refer(sc_adata=adata_sc,
                                       anno_key=anno_key,
                                       cell_per_ct=cell_per_ct)
-
         spa_X, pseudo_X, pseudo_df_composition, abs_size = generate_merge_iter(sc_adata=adata_sc_sim,
                                                                                spa_adata=adata_sp,
                                                                                pre_deconvo=prediction,
